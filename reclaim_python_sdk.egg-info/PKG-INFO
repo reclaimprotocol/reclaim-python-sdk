@@ -1,0 +1,18 @@
+Metadata-Version: 2.1
+Name: reclaim-python-sdk
+Version: 0.1.0
+Summary: Python SDK for the Reclaim Protocol
+Home-page: https://github.com/reclaimprotocol/reclaim-sdk
+Author: Reclaim Protocol
+Author-email: team@reclaimprotocol.org
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+
+# Reclaim Python SDK
+
+The official Python SDK for the Reclaim Protocol.
+
+## Installation 

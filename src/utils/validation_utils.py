@@ -1,4 +1,6 @@
 import json
+from json_canonical import canonicalize
+from sha3 import keccak_256
 from eth_account.messages import encode_defunct
 from web3 import Web3
 from eth_utils import to_checksum_address
@@ -39,15 +41,23 @@ def validate_url(url: str, function_name: str) -> None:
 def validate_signature(provider_id: str, signature: str, application_id: str, timestamp: str) -> None:
     try:
         logger.info(f"Starting signature validation for providerId: {provider_id}, applicationId: {application_id}, timestamp: {timestamp}")
-        
-        message = json.dumps({'providerId': provider_id, 'timestamp': timestamp})
+        canonical_data = canonicalize(
+                {
+                    "providerId": provider_id,
+                    "timestamp": timestamp,
+                }
+            )
+
+        message_hash = keccak_256(canonical_data).hexdigest()
+        message_hash_bytes = bytes.fromhex(message_hash)
+       
         w3 = Web3()
         
         # Create the message hash
-        message_hash = encode_defunct(text=message)
+        message = encode_defunct(message_hash_bytes)
         
         # Recover the address from the signature
-        recovered_address = w3.eth.account.recover_message(message_hash, signature=signature)
+        recovered_address = w3.eth.account.recover_message(message, signature=signature)
         recovered_address = recovered_address.lower()
         
         if to_checksum_address(recovered_address) != to_checksum_address(application_id):

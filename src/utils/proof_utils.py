@@ -21,10 +21,11 @@ def generate_requested_proof(provider: ProviderData) -> RequestedProof:
     """
     Generates the requested proof for a given provider
     """
+    
     provider_params: Dict[str, str] = {}
-    for rs in provider.response_selections:
+    for rs in provider.responseSelections:
         # Using regex to match parameters between {{ }}
-        matches = re.findall(r'{{(.*?)}}', rs.response_match)
+        matches = re.findall(r'{{(.*?)}}', rs.responseMatch)
         for match in matches:
             provider_params[match] = ''
             
@@ -32,7 +33,7 @@ def generate_requested_proof(provider: ProviderData) -> RequestedProof:
         "url": provider.url,
         "parameters": provider_params
     }
-    
+        
     return proof
 
 def get_filled_parameters(requested_proof: RequestedProof) -> Dict[str, str]:

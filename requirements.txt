@@ -5,3 +5,7 @@ aiohttp>=3.8.0
 canonicalize>=1.0.0
 python-dotenv>=1.0.0 
 httpx>=0.24.0
+requests>=2.32.3
+asyncio>=3.4.3
+pysha3>=1.0.2
+json-canonical>=2.0.0

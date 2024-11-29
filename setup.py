@@ -11,7 +11,11 @@ setup(
         "typing-extensions>=4.5.0",
         "aiohttp>=3.8.0",
         "python-dotenv>=1.0.0",
-        "httpx>=0.24.0"
+        "requests>=2.32.3",
+        "httpx>=0.24.0",
+        "asyncio>=3.4.3",
+        "pysha3>=1.0.2",
+        "json-canonical>=2.0.0",
     ],
     python_requires=">=3.7",
     author="Reclaim Protocol",

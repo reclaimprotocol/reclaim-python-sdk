@@ -127,7 +127,15 @@ class ProofRequestOptions:
 @dataclass
 class InitSessionResponse:
     session_id: str
-    provider: 'ProviderData'  # Forward reference
+    provider: ProviderData  # Forward reference
+    
+    @classmethod
+    def from_json(cls, json: Dict[str, Any]) -> 'InitSessionResponse':
+        return cls(
+            session_id=json['sessionId'],
+            provider=ProviderData.from_json(json['provider'])
+        )
+
 
 @dataclass
 class UpdateSessionResponse:
@@ -207,8 +215,8 @@ class TemplateData:
 @dataclass
 class Session:
     id: str
-    app_id: str
-    http_provider_id: List[str]
+    appId: str
+    httpProviderId: List[str]
     sessionId: str
     statusV2: str
     proofs: Optional[List['Proof']] = None
@@ -217,9 +225,9 @@ class Session:
     def from_json(cls, json: Dict[str, Any]) -> 'Session':
         return cls(
             id=json['id'],
-            app_id=json['appId'],
-            http_provider_id=json['httpProviderId'],
-            session_id=json['sessionId'],
+            appId=json['appId'],
+            httpProviderId=json['httpProviderId'],
+            sessionId=json['sessionId'],
             proofs=[Proof.from_json(p) for p in json['proofs']] if json.get('proofs') else None,
-            status_v2=json['statusV2']
+            statusV2=json['statusV2']
         ) 

@@ -128,3 +128,15 @@ class GetRequestedProofError(ReclaimError):
 class SessionTimeoutError(ReclaimError):
     """Raised when a session times out"""
     pass
+
+class StatusUrlError(ReclaimError):
+    """Raised when there's an error with the status URL"""
+    pass
+
+class ProofSubmissionFailedError(ReclaimError):
+    """Raised when proof submission fails"""
+    pass
+
+class ConvertToJsonStringError(ReclaimError):
+    """Raised when there's an error converting to JSON string"""
+    pass
