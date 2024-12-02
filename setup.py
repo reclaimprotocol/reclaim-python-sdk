@@ -5,6 +5,10 @@ setup(
     version="0.1.0",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
+    include_package_data=True,
+    package_data={
+        "": ["*.py"],
+    },
     install_requires=[
         "web3>=6.0.0",
         "canonicaljson>=1.0.0",
