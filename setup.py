@@ -15,7 +15,7 @@ setup(
         "requests>=2.32.3",
         "httpx>=0.24.0",
         "asyncio>=3.4.3",
-        "pysha3>=1.0.2",
+        "safe-pysha3>=1.0.2",
         "json-canonical>=2.0.0",
     ],
     python_requires=">=3.7",
@@ -31,8 +31,7 @@ setup(
         "Operating System :: OS Independent",
     ],
     setup_requires=[
-        "wheel>=0.40.0",
+        "wheel",
         "setuptools>=42",
-        "pysha3>=1.0.2",
     ],
 ) 

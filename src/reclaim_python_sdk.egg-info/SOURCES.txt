@@ -1,0 +1,7 @@
+README.md
+setup.py
+src/reclaim_python_sdk.egg-info/PKG-INFO
+src/reclaim_python_sdk.egg-info/SOURCES.txt
+src/reclaim_python_sdk.egg-info/dependency_links.txt
+src/reclaim_python_sdk.egg-info/requires.txt
+src/reclaim_python_sdk.egg-info/top_level.txt

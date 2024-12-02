@@ -1,11 +1,11 @@
 web3>=6.0.0
+canonicaljson>=1.0.0
 eth-account>=0.8.0
 typing-extensions>=4.5.0
 aiohttp>=3.8.0
-canonicalize>=1.0.0
-python-dotenv>=1.0.0 
-httpx>=0.24.0
+python-dotenv>=1.0.0
 requests>=2.32.3
+httpx>=0.24.0
 asyncio>=3.4.3
 safe-pysha3>=1.0.2
 json-canonical>=2.0.0
