@@ -31,7 +31,8 @@ setup(
         "Operating System :: OS Independent",
     ],
     setup_requires=[
-        "wheel",
+        "wheel>=0.40.0",
         "setuptools>=42",
+        "pysha3>=1.0.2",
     ],
 ) 
