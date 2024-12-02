@@ -14,10 +14,10 @@ You can obtain these details from the [Reclaim Developer Portal](https://dev.rec
 
 ## Step 1: Installation
 
-Install the Reclaim Protocol Python SDK using pip:
+You can install this package directly from GitHub using pip:
 
 ```bash
-pip install reclaim-sdk
+pip install git+https://github.com/reclaimprotocol/reclaim-python-sdk.git
 ```
 
 ## Step 2: Basic Usage

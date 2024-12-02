@@ -22,6 +22,8 @@ from .utils.session_utils import init_session, update_session
 from .utils.proof_utils import generate_requested_proof, get_filled_parameters, create_link_with_template_data
 from .utils.validation_utils import validate_signature
 
+
+
 from .utils.errors import (
     GetRequestUrlError,
     InitError,
@@ -150,7 +152,6 @@ class ReclaimProofRequest:
     _provider_id: str
     _options: Optional[Dict[str, Any]]
     _timestamp: str
-    _intervals: Dict[str, Task]
 
     _session_id: Optional[str]
     _context: Context
@@ -178,7 +179,6 @@ class ReclaimProofRequest:
         self._provider_id = provider_id
         self._options = options
         self._timestamp = str(int(time.time() * 1000))
-        self._intervals = {}
 
         self._session_id = None
         self._context = Context(contextAddress="0x0", contextMessage="")
@@ -187,7 +187,7 @@ class ReclaimProofRequest:
         self._app_callback_url = None
         self._redirect_url = None
         self._requested_proof = None
-        self._sdk_version = None
+        self._sdk_version = "python-0.1.0"
 
         if options and options.get("log"):
             Logger.set_log_level(LogLevel.INFO)

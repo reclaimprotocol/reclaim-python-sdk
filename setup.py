@@ -3,7 +3,8 @@ from setuptools import setup, find_packages
 setup(
     name="reclaim-python-sdk",
     version="0.1.0",
-    packages=find_packages(),
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     install_requires=[
         "web3>=6.0.0",
         "canonicaljson>=1.0.0",
@@ -19,11 +20,11 @@ setup(
     ],
     python_requires=">=3.7",
     author="Reclaim Protocol",
-    author_email="team@reclaimprotocol.org",
+    author_email="kushal@creatoros.co",
     description="Python SDK for the Reclaim Protocol",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/reclaimprotocol/reclaim-sdk",
+    url="https://github.com/reclaimprotocol/reclaim-python-sdk",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
