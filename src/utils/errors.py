@@ -105,13 +105,6 @@ class GetRequestUrlError(ReclaimError):
     """Raised when there's an error getting the request URL"""
     pass
 
-class StatusUrlError(ReclaimError):
-    """Raised when there's an error with the status URL"""
-    pass
-
-class ProofSubmissionFailedError(ReclaimError):
-    """Raised when proof submission fails"""
-    pass
 
 class SetAppCallbackUrlError(ReclaimError):
     """Raised when there's an error setting the app callback URL"""
@@ -123,18 +116,6 @@ class SetRedirectUrlError(ReclaimError):
 
 class GetRequestedProofError(ReclaimError):
     """Raised when there's an error getting the requested proof"""
-    pass
-
-class SessionTimeoutError(ReclaimError):
-    """Raised when a session times out"""
-    pass
-
-class StatusUrlError(ReclaimError):
-    """Raised when there's an error with the status URL"""
-    pass
-
-class ProofSubmissionFailedError(ReclaimError):
-    """Raised when proof submission fails"""
     pass
 
 class ConvertToJsonStringError(ReclaimError):

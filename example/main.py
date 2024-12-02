@@ -22,28 +22,10 @@ async def main():
 
         reclaim_proof_request.set_app_callback_url('https://webhook.site/29c6fff0-100c-4e34-8e28-5915f13a6aa4')
 
-
         request_url = await reclaim_proof_request.get_request_url()
         print(f"Request URL: {request_url}")
 
-        # Start the session
-        def on_success(proofs):
-            if isinstance(proofs, str):
-                # When using a custom callback url
-                print('SDK Message:', proofs)
-            else:
-                # When using default callback
-                print('Proof received:', proofs.claim_data.context)
 
-        def on_failure(error):
-            print('Verification failed:', error)
-
-        await reclaim_proof_request.start_session(
-            on_success=on_success,
-            on_error=on_failure
-        )
-
-        print(f"Request URL: {request_url}")
 
     except Exception as e:
         print(f"Error: {str(e)}")

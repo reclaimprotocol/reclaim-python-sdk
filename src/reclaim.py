@@ -16,21 +16,41 @@ from .utils.interfaces import (
 )
 from .utils.types import ClaimInfo, SignedClaim, SessionStatus
 
-from .utils.constants import *
+from .utils.constants import DEFAULT_RECLAIM_CALLBACK_URL, DEFAULT_RECLAIM_STATUS_URL
 
-from .utils.session_utils import *
-from .utils.proof_utils import *
-from .utils.validation_utils import *
+from .utils.session_utils import init_session, update_session
+from .utils.proof_utils import generate_requested_proof, get_filled_parameters, create_link_with_template_data
+from .utils.validation_utils import validate_signature
 
-from .utils.errors import *
+from .utils.errors import (
+    GetRequestUrlError,
+    InitError,
+    SetSignatureError,
+    SignatureGeneratingError,
+    SignatureNotFoundError,
+    ProofNotVerifiedError,
+    SessionNotStartedError,
+    GetAppCallbackUrlError,
+    GetStatusUrlError,
+    SetAppCallbackUrlError,
+    SetRedirectUrlError,
+    AddContextError,
+    SetParamsError,
+    NoProviderParamsError,
+    GetRequestedProofError,
+    BuildProofRequestError,
+    ConvertToJsonStringError,
+    InvalidParamError,
+    AvailableParamsError,
+)
+
 from .utils.proof_utils import assert_valid_signed_claim, get_witnesses_for_claim
 
 from .witness import get_identifier_from_claim_info
 
 from .utils.logger import LogLevel, Logger
 
-from asyncio import Task, CancelledError
-from .utils.helper import clear_interval, schedule_interval_ending
+from asyncio import Task
 
 logger = Logger()
 
@@ -354,137 +374,27 @@ class ReclaimProofRequest:
             logger.info(f"Error Setting Params: {str(e)}")
             raise SetParamsError("Error setting params") from e
 
-    def _available_params(self) -> List[str]:
-        """Get available parameters for the provider
-
-        Returns:
-            List[str]: List of available parameter names
-
-        Raises:
-            AvailableParamsError: If parameters cannot be retrieved
-        """
-        try:
-            requested_proof = self._get_requested_proof()
-            available_params = set(requested_proof.parameters.keys())
-
-            # Add URL parameters
-            import re
-
-            url_params = re.findall(r"{{(.*?)}}", requested_proof.url)
-            available_params.update(url_params)
-
-            return list(available_params)
-
-        except Exception as e:
-            logger.info(f"Error fetching available params: {str(e)}")
-            raise AvailableParamsError("Error fetching available params") from e
-
-    async def start_session(
-        self,
-        on_success: Optional[Callable[[Union[Proof, str]], None]] = None,
-        on_error: Optional[Callable[[Exception], None]] = None,
-    ) -> None:
-        """Start the proof request session
-
-        Args:
-            on_success (Optional[Callable]): Callback for successful proof generation
-            on_error (Optional[Callable]): Callback for errors
-
-        Raises:
-            SessionNotStartedError: If session cannot be started
-        """
-        if not self._session_id:
-            msg = "Session can't be started due to undefined value of sessionId"
-            logger.info(msg)
-            raise SessionNotStartedError(msg)
-
-        logger.info("Starting session")
-
-        async def check_status():
-            try:
-                status_response = await fetch_status_url(self._session_id)
-
-                if not status_response.session:
-                    return
-
-                if status_response.session.statusV2 == SessionStatus.PROOF_GENERATION_FAILED:
-                    raise ProviderFailedError()
-
-                is_default_callback = (
-                    self.get_app_callback_url() 
-                    == f"{DEFAULT_RECLAIM_CALLBACK_URL}{self._session_id}"
-                )
-
-                if is_default_callback:
-                    if (
-                        status_response.session.proofs 
-                        and len(status_response.session.proofs) > 0
-                    ):
-                        proof = status_response.session.proofs[0]
-                        verified = await verify_proof(proof)
-                        if not verified:
-                            logger.info(f"Proof not verified: {json.dumps(proof)}")
-                            raise ProofNotVerifiedError()
-                        if on_success:
-                            await on_success(proof)
-                        clear_interval(self._intervals, self._session_id)
-                else:
-                    if status_response.session.statusV2 == SessionStatus.PROOF_SUBMISSION_FAILED:
-                        raise ProofSubmissionFailedError()
-                    if status_response.session.statusV2 == SessionStatus.PROOF_SUBMITTED:
-                        if on_success:
-                            await on_success("Proof submitted successfully to the custom callback url")
-                        clear_interval(self._intervals, self._session_id)
-
-            except Exception as e:
-                if on_error:
-                    await on_error(e)
-                clear_interval(self._intervals, self._session_id)
-
-        async def periodic_check():
-            try:
-                while True:
-                    await check_status()
-                    await asyncio.sleep(3)  # Wait for 3 seconds before next check
-            except CancelledError:
-                logger.info("Periodic check cancelled")
-            except Exception as e:
-                logger.info(f"Error in periodic check: {str(e)}")
-                if on_error:
-                    await on_error(e)
-                clear_interval(self._intervals, self._session_id)
-
-        # Start periodic task
-        self._intervals[self._session_id] = asyncio.create_task(periodic_check())
-
-        # Schedule task to end interval after timeout (10 minutes)
-        asyncio.create_task(
-            schedule_interval_ending(
-                self._session_id, 
-                self._intervals,
-                on_error
-            )
-        )
-
     def to_json_string(self) -> str:
         """Convert the proof request to JSON string
 
         Returns:
             str: JSON string representation
-        
+
         Raises:
             InvalidParamError: If conversion to JSON string fails
         """
         try:
             # Create the full dictionary
-            
+
             logger.info(f"Requested proof: {self._requested_proof}")
             data = {
                 "applicationId": self._application_id,
                 "providerId": self._provider_id,
                 "sessionId": self._session_id,
                 "context": self._context.to_json(),
-                "requestedProof": self._get_requested_proof() if self._requested_proof else None,
+                "requestedProof": (
+                    self._get_requested_proof() if self._requested_proof else None
+                ),
                 "appCallbackUrl": self._app_callback_url,
                 "signature": self._signature,
                 "redirectUrl": self._redirect_url,
@@ -492,13 +402,12 @@ class ReclaimProofRequest:
                 "options": self._options,
                 "sdkVersion": self._sdk_version,
             }
-            
+
             return json.dumps(data)
         except Exception as e:
             logger.info(f"Error converting to json string: {str(e)}")
             raise ConvertToJsonStringError("Error converting to json string") from e
 
-    @classmethod
     async def from_json_string(cls, json_string: str) -> "ReclaimProofRequest":
         """Create ReclaimProofRequest instance from JSON string
 
@@ -535,14 +444,15 @@ class ReclaimProofRequest:
             # Set properties
             instance._session_id = data["sessionId"]
             instance._context = Context.from_json(data["context"])
-            instance._requested_proof = data["requestedProof"] if data["requestedProof"] else None
+            instance._requested_proof = (
+                data["requestedProof"] if data["requestedProof"] else None
+            )
             instance._app_callback_url = data.get("appCallbackUrl")
             instance._sdk_version = data["sdkVersion"]
             instance._redirect_url = data.get("redirectUrl")
             instance._signature = data["signature"]
             instance._timestamp = data["timeStamp"]
-            
-            
+
             logger.info(f"Requested proof: {instance._requested_proof}")
 
             return instance
@@ -712,5 +622,30 @@ class ReclaimProofRequest:
             raise SignatureGeneratingError(
                 f"Error generating signature for applicationSecret: {app_secret}"
             ) from e
+
+    def _available_params(self) -> List[str]:
+        """Get available parameters for the provider
+
+        Returns:
+            List[str]: List of available parameter names
+
+        Raises:
+            AvailableParamsError: If parameters cannot be retrieved
+        """
+        try:
+            requested_proof = self._get_requested_proof()
+            available_params = set(requested_proof.parameters.keys())
+
+            # Add URL parameters
+            import re
+
+            url_params = re.findall(r"{{(.*?)}}", requested_proof.url)
+            available_params.update(url_params)
+
+            return list(available_params)
+
+        except Exception as e:
+            logger.info(f"Error fetching available params: {str(e)}")
+            raise AvailableParamsError("Error fetching available params") from e
 
     # Add other private helper methods as needed

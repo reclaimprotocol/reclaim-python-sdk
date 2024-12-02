@@ -48,22 +48,6 @@ async def main():
     status_url = proof_request.get_status_url()
     print(f"Status URL: {status_url}")
 
-    # Start the session
-    def on_success(proofs):
-        if isinstance(proofs, str):
-            # When using a custom callback url
-            print('SDK Message:', proofs)
-        else:
-            # When using default callback
-            print('Proof received:', proofs.claim_data.context)
-
-    def on_failure(error):
-        print('Verification failed:', error)
-
-    await proof_request.start_session(
-        on_success=on_success,
-        on_failure=on_failure
-    )
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -79,7 +63,6 @@ Let's break down what's happening in this code:
 
 3. We get the status URL using `get_status_url()`. This URL can be used to check the status of the claim process.
 
-4. We start a session with `start_session()`, which sets up callbacks for successful and failed verifications.
 
 ## Advanced Configuration
 
@@ -150,11 +133,6 @@ async def main():
     # Get request URL
     request_url = await proof_request.get_request_url()
 
-    # Start session
-    await proof_request.start_session(
-        on_success=lambda proofs: print('Success:', proofs),
-        on_failure=lambda error: print('Failed:', error)
-    )
 
 if __name__ == "__main__":
     asyncio.run(main())
