@@ -1,15 +1,11 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 
 setup(
     name="reclaim_python_sdk",
     version="0.1.0",
-    packages=find_packages(where="src", include=["*", "utils.*"]),
-    package_dir={"": "src"},
+    packages=find_namespace_packages(include=["src.*"]),
+    package_dir={"": "."},
     include_package_data=True,
-    package_data={
-        "": ["*.py"],
-        "utils": ["*.py"],
-    },
     install_requires=[
         "web3>=6.0.0",
         "canonicaljson>=1.0.0",
