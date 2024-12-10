@@ -1,5 +1,5 @@
 Metadata-Version: 2.1
-Name: reclaim_python_sdk
+Name: reclaim-python-sdk
 Version: 0.1.0
 Summary: Python SDK for the Reclaim Protocol
 Home-page: https://github.com/reclaimprotocol/reclaim-python-sdk
@@ -10,17 +10,7 @@ Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
 Requires-Python: >=3.7
 Description-Content-Type: text/markdown
-Requires-Dist: web3>=6.0.0
-Requires-Dist: canonicaljson>=1.0.0
-Requires-Dist: eth-account>=0.8.0
-Requires-Dist: typing-extensions>=4.5.0
-Requires-Dist: aiohttp>=3.8.0
-Requires-Dist: python-dotenv>=1.0.0
-Requires-Dist: requests>=2.32.3
-Requires-Dist: httpx>=0.24.0
-Requires-Dist: asyncio>=3.4.3
-Requires-Dist: safe-pysha3>=1.0.2
-Requires-Dist: json-canonical>=2.0.0
+License-File: LICENSE
 
 # Reclaim Protocol Python SDK Integration Guide
 
