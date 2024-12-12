@@ -17,7 +17,7 @@ You can obtain these details from the [Reclaim Developer Portal](https://dev.rec
 You can install this package directly from GitHub using pip:
 
 ```bash
-pip install git+https://github.com/reclaimprotocol/reclaim-python-sdk.git
+pip install reclaim-python-sdk==0.1.1
 ```
 
 ## Step 2: Basic Usage

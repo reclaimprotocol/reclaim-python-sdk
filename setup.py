@@ -2,9 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
     name="reclaim_python_sdk",
-    version="0.1.0",
-    packages=find_packages(where="src"),
+    version="0.1.1",
     package_dir={"": "src"},
+    packages=find_packages(where="src", exclude=["tests*"]),
     include_package_data=True,
     install_requires=[
         "web3>=6.0.0",
@@ -21,7 +21,7 @@ setup(
     ],
     python_requires=">=3.7",
     author="Reclaim Protocol",
-    author_email="kushal@creatoros.co",
+    author_email="engineering@creatoros.co",
     description="Python SDK for the Reclaim Protocol",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

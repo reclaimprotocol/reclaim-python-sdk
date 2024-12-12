@@ -1,3 +1,6 @@
 include README.md
 include LICENSE
-recursive-include src *.py
+include requirements.txt
+recursive-include src *
+global-exclude *.pyc
+global-exclude __pycache__

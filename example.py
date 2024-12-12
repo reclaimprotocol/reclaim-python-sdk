@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from src.reclaim import ReclaimProofRequest
+from reclaim_python_sdk import ReclaimProofRequest
 import asyncio
 
 # Load environment variables from .env file
