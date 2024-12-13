@@ -102,6 +102,9 @@ class RequestedProof:
     url: str
     parameters: Dict[str, str]
 
+    def __init__(self):
+        self.parameters: Dict[str, str] = {}
+
     def to_json(self) -> Dict[str, any]:
         return {
             'url': self.url,

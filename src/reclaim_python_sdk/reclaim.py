@@ -187,7 +187,7 @@ class ReclaimProofRequest:
         self._app_callback_url = None
         self._redirect_url = None
         self._requested_proof = None
-        self._sdk_version = "python-0.1.4"
+        self._sdk_version = "python-0.1.5"
 
         if options and options.get("log"):
             Logger.set_log_level(LogLevel.INFO)
@@ -368,8 +368,12 @@ class ReclaimProofRequest:
                         "Value must be a string."
                     )
 
-            self._requested_proof.parameters.update(params)
-
+            # dict has no attribute parameters error fix
+            if isinstance(self._requested_proof, dict):
+                self._requested_proof['parameters'].update(params)
+            else:
+                self._requested_proof.parameters.update(params)
+            
         except Exception as e:
             logger.info(f"Error Setting Params: {str(e)}")
             raise SetParamsError("Error setting params") from e
@@ -634,13 +638,32 @@ class ReclaimProofRequest:
         """
         try:
             requested_proof = self._get_requested_proof()
-            available_params = set(requested_proof.parameters.keys())
+            
+            # Initialize empty set for available parameters
+            available_params = set()
+            
+            # Handle both dictionary and object types
+            parameters = (
+                requested_proof['parameters'] 
+                if isinstance(requested_proof, dict) 
+                else requested_proof.parameters
+            )
+            
+            url = (
+                requested_proof['url']
+                if isinstance(requested_proof, dict)
+                else requested_proof.url
+            )
+            
+            if parameters:
+                available_params.update(parameters.keys())
 
             # Add URL parameters
-            import re
-
-            url_params = re.findall(r"{{(.*?)}}", requested_proof.url)
-            available_params.update(url_params)
+            if url:
+                import re
+                url_params = re.findall(r"{{(.*?)}}", url)
+                available_params.update(url_params)
+            
 
             return list(available_params)
 
