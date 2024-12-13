@@ -158,6 +158,7 @@ class ReclaimProofRequest:
 
     _signature: Optional[str]
     _app_callback_url: Optional[str]
+    _json_proof_response: Optional[bool]
     _redirect_url: Optional[str]
     _requested_proof: Optional[RequestedProof]
     _sdk_version: Optional[str]
@@ -185,6 +186,7 @@ class ReclaimProofRequest:
 
         self._signature = None
         self._app_callback_url = None
+        self._json_proof_response = None
         self._redirect_url = None
         self._requested_proof = None
         self._sdk_version = "python-0.1.5"
@@ -285,7 +287,7 @@ class ReclaimProofRequest:
             logger.info(f"Error getting status url: {str(e)}")
             raise GetStatusUrlError("Error getting status url") from e
 
-    def set_app_callback_url(self, url: str) -> None:
+    def set_app_callback_url(self, url: str, json_proof_response: bool = False) -> None:
         """Set custom callback URL
 
         Args:
@@ -297,6 +299,7 @@ class ReclaimProofRequest:
         try:
             # TODO: Add URL validation
             self._app_callback_url = url
+            self._json_proof_response = bool(json_proof_response)
         except Exception as e:
             logger.info(f"Error setting app callback url: {str(e)}")
             raise SetAppCallbackUrlError("Error setting app callback url") from e
@@ -405,6 +408,7 @@ class ReclaimProofRequest:
                 "timeStamp": self._timestamp,
                 "options": self._options,
                 "sdkVersion": self._sdk_version,
+                "jsonProofResponse": self._json_proof_response,
             }
 
             return json.dumps(data)
@@ -499,6 +503,7 @@ class ReclaimProofRequest:
                 "redirectUrl": self._redirect_url or "",
                 "acceptAiProviders": self._options.get("acceptAiProviders", False),
                 "sdkVersion": self._sdk_version or "",
+                "jsonProofResponse": self._json_proof_response,
             }
 
             await update_session(self._session_id, SessionStatus.SESSION_STARTED)
