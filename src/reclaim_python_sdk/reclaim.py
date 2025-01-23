@@ -57,19 +57,28 @@ from asyncio import Task
 logger = Logger()
 
 
-async def verify_proof(proof: Proof) -> bool:
+async def verify_proof(proof: Union[Proof, List[Proof]]) -> bool:
     """
-    Verify a proof by checking signatures and witness data
+    Verify a proof or array of proofs by checking signatures and witness data
 
     Args:
-        proof (Proof): The proof object to verify
+        proof (Union[Proof, List[Proof]]): Single proof object or list of proof objects to verify
 
     Returns:
-        bool: True if proof is valid, False otherwise
+        bool: True if all proofs are valid, False if any proof is invalid
 
     Raises:
-        SignatureNotFoundError: If no signatures are present in the proof
+        SignatureNotFoundError: If no signatures are present in a proof
     """
+    # Handle array of proofs recursively
+    logger.info(f"Verifying proof: {proof}")
+    if isinstance(proof, list):
+        for single_proof in proof:
+            if not await verify_proof(single_proof):
+                return False
+        return True
+
+    # Handle single proof (existing logic)
     if not proof.signatures:
         raise SignatureNotFoundError("No signatures")
 
@@ -84,13 +93,11 @@ async def verify_proof(proof: Proof) -> bool:
             )
 
         claim_data = ClaimInfo(
-            # canonicalize claim data parameters without adding b'' to the string and dont add escape characters
             parameters=proof.claimData.parameters,
             provider=proof.claimData.provider,
             context=proof.claimData.context,
         )
 
-        # Use JSON canonicalization instead of the canonicalize module
         calculated_identifier = get_identifier_from_claim_info(claim_data)
 
         # Remove quotes from identifier for comparison

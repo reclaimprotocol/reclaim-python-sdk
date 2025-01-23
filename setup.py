@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="reclaim_python_sdk",
-    version="0.1.5",
+    version="0.2.0",
     package_dir={"": "src"},
     packages=find_packages(where="src", exclude=["tests*"]),
     include_package_data=True,
