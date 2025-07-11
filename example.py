@@ -14,13 +14,21 @@ async def main():
         app_secret = os.getenv("APP_SECRET")
         provider_id = os.getenv("PROVIDER_ID")
 
-        reclaim_proof_request = await ReclaimProofRequest.init(app_id, app_secret, provider_id, options={'log': True})
+        reclaim_proof_request = await ReclaimProofRequest.init(app_id, app_secret, provider_id, {"log": True})
+        
+        reclaim_proof_request.set_params({
+            'name': 'John Doe',
+            'age': '30',
+            'email': 'john.doe@example.com'
+        })
 
         reclaim_proof_request.add_context('0x00000000000', 'Example context message')
 
         reclaim_proof_request.set_redirect_url('https://example.com/redirect')
 
-        reclaim_proof_request.set_app_callback_url('https://webhook.site/29c6fff0-100c-4e34-8e28-5915f13a6aa4')
+        reclaim_proof_request.set_app_callback_url('https://webhook.site/29c6fff0-100c-4e34-8e28-5915f13a6aa4', True)
+        
+        print(reclaim_proof_request.to_json_string())
 
         request_url = await reclaim_proof_request.get_request_url()
         print(f"Request URL: {request_url}")

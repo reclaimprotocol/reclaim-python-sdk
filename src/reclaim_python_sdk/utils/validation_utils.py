@@ -37,6 +37,16 @@ def validate_url(url: str, function_name: str) -> None:
     except Exception as e:
         logger.info(f"URL validation failed for {url} in {function_name}: {str(e)}")
         raise InvalidParamError(f"Invalid URL format {url} passed to {function_name}.", e)
+    
+def validate_parameters(parameters: Dict[str, str]) -> None:
+    try:
+        for key, value in parameters.items():
+            if not isinstance(key, str) or not isinstance(value, str):
+                logger.info("Parameters validation failed: Provided parameters is not an object of key value pairs of string and string")
+                raise InvalidParamError("The provided parameters is not an object of key value pairs of string and string")
+    except Exception as e:
+        logger.info(f"Parameters validation failed: {str(e)}")
+        raise InvalidParamError("Invalid parameters passed to validateParameters.", e)
 
 def validate_signature(provider_id: str, signature: str, application_id: str, timestamp: str) -> None:
     try:

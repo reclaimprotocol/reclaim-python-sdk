@@ -25,14 +25,6 @@ class SessionNotStartedError(ReclaimError):
     """Raised when trying to access a session that hasn't been started"""
     pass
 
-class ProviderNotFoundError(ReclaimError):
-    """Raised when a specified provider is not found"""
-    pass
-
-class BuildProofRequestError(ReclaimError):
-    """Raised when there's an error building a proof request"""
-    pass
-
 class SignatureGeneratingError(ReclaimError):
     """Raised when there's an error generating a signature"""
     pass
@@ -67,10 +59,6 @@ class ApplicationError(ReclaimError):
 
 class InitError(ReclaimError):
     """Raised when initialization fails"""
-    pass
-
-class AvailableParamsError(ReclaimError):
-    """Raised when there's an error with available parameters"""
     pass
 
 class BackendServerError(ReclaimError):

@@ -1,26 +1,22 @@
-import asyncio
 import json
 import time
 from json_canonical import canonicalize
 from sha3 import keccak_256
-from typing import Dict, List, Optional, Any, Union, Callable, AsyncIterator
+from typing import Dict, List, Optional, Any, Union
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from web3 import Web3
 from .utils.interfaces import (
     Proof,
     Context,
     ProviderClaimData,
-    ProviderData,
-    RequestedProof,
 )
 from .utils.types import ClaimInfo, SignedClaim, SessionStatus
 
 from .utils.constants import DEFAULT_RECLAIM_CALLBACK_URL, DEFAULT_RECLAIM_STATUS_URL
 
 from .utils.session_utils import init_session, update_session
-from .utils.proof_utils import generate_requested_proof, get_filled_parameters, create_link_with_template_data
-from .utils.validation_utils import validate_signature
+from .utils.proof_utils import create_link_with_template_data
+from .utils.validation_utils import validate_parameters, validate_signature
 
 
 
@@ -38,12 +34,8 @@ from .utils.errors import (
     SetRedirectUrlError,
     AddContextError,
     SetParamsError,
-    NoProviderParamsError,
-    GetRequestedProofError,
-    BuildProofRequestError,
     ConvertToJsonStringError,
     InvalidParamError,
-    AvailableParamsError,
 )
 
 from .utils.proof_utils import assert_valid_signed_claim, get_witnesses_for_claim
@@ -52,7 +44,6 @@ from .witness import get_identifier_from_claim_info
 
 from .utils.logger import LogLevel, Logger
 
-from asyncio import Task
 
 logger = Logger()
 
@@ -85,12 +76,26 @@ async def verify_proof(proof: Union[Proof, List[Proof]]) -> bool:
     try:
         # Check if witness array exists and first element is manual-verify
         witnesses = []
-        if proof.witnesses and proof.witnesses[0].get("url") == "manual-verify":
-            witnesses.append(proof.witnesses[0]["id"])
+        if proof.witnesses:
+            first_witness = proof.witnesses[0]
+            # Handle both dict and WitnessData object
+            if isinstance(first_witness, dict):
+                witness_url = first_witness.get("url")
+                witness_id = first_witness.get("id")
+            else:
+                # Assume it's a WitnessData object
+                witness_url = first_witness.url
+                witness_id = first_witness.id
+            
+            if witness_url == "manual-verify":
+                witnesses.append(witness_id)
+            else:
+                witnesses = await get_witnesses_for_claim(
+                    proof.claimData.epoch, proof.identifier, proof.claimData.timestampS
+                )
         else:
-            witnesses = await get_witnesses_for_claim(
-                proof.claimData.epoch, proof.identifier, proof.claimData.timestampS
-            )
+            logger.info(f"No witnesses found for proof")
+            return False
 
         claim_data = ClaimInfo(
             parameters=proof.claimData.parameters,
@@ -159,14 +164,17 @@ class ReclaimProofRequest:
     _provider_id: str
     _options: Optional[Dict[str, Any]]
     _timestamp: str
+    _resolved_provider_version: Optional[str]
 
     _session_id: Optional[str]
     _context: Context
+    
+    _json_proof_response: bool
 
     _signature: Optional[str]
     _app_callback_url: Optional[str]
     _redirect_url: Optional[str]
-    _requested_proof: Optional[RequestedProof]
+    _parameters: Optional[Dict[str, str]]
     _sdk_version: Optional[str]
 
     def __init__(
@@ -184,7 +192,9 @@ class ReclaimProofRequest:
         """
         self._application_id = application_id
         self._provider_id = provider_id
-        self._options = options
+        self._options = options if options else {}
+        self._json_proof_response = False
+        self._parameters = {}
         self._timestamp = str(int(time.time() * 1000))
 
         self._session_id = None
@@ -193,8 +203,7 @@ class ReclaimProofRequest:
         self._signature = None
         self._app_callback_url = None
         self._redirect_url = None
-        self._requested_proof = None
-        self._sdk_version = "python-0.1.5"
+        self._sdk_version = "python-1.0.3"
 
         if options and options.get("log"):
             Logger.set_log_level(LogLevel.INFO)
@@ -237,13 +246,16 @@ class ReclaimProofRequest:
             instance._set_signature(signature)
 
             # Initialize session
+            logger.info(f"Initializing session for provider: {provider_id}, applicationId: {application_id}, timestamp: {instance._timestamp}, signature: {signature}")
+            
+            # if providerVersion is present in options, use it, send None otherwise
             session_data = await init_session(
-                provider_id, application_id, instance._timestamp, signature
+                provider_id, application_id, instance._timestamp, signature, options.get("provider_version") if options.get("provider_version") else None
             )
+            
             instance._session_id = session_data.session_id
+            instance._resolved_provider_version = session_data.resolved_provider_version
 
-            # Build proof request
-            await instance._build_proof_request(session_data.provider)
 
             return instance
 
@@ -292,7 +304,7 @@ class ReclaimProofRequest:
             logger.info(f"Error getting status url: {str(e)}")
             raise GetStatusUrlError("Error getting status url") from e
 
-    def set_app_callback_url(self, url: str) -> None:
+    def set_app_callback_url(self, url: str, json_proof_response: bool = False) -> None:
         """Set custom callback URL
 
         Args:
@@ -304,6 +316,7 @@ class ReclaimProofRequest:
         try:
             # TODO: Add URL validation
             self._app_callback_url = url
+            self._json_proof_response = json_proof_response
         except Exception as e:
             logger.info(f"Error setting app callback url: {str(e)}")
             raise SetAppCallbackUrlError("Error setting app callback url") from e
@@ -354,33 +367,8 @@ class ReclaimProofRequest:
             NoProviderParamsError: If no provider parameters are available
         """
         try:
-            requested_proof = self._get_requested_proof()
-            if not requested_proof:
-                raise BuildProofRequestError("Requested proof is not present.")
-
-            current_params = self._available_params()
-            if not current_params:
-                raise NoProviderParamsError("No params present in the provider config.")
-
-            params_to_set = list(params.keys())
-            for param in params_to_set:
-                if param not in current_params:
-                    raise InvalidParamError(
-                        f"Cannot set parameter {param} for provider {self._provider_id}. "
-                        f"Available parameters: {current_params}"
-                    )
-                if not isinstance(params[param], str):
-                    raise InvalidParamError(
-                        f"Cannot set parameter {param} for provider {self._provider_id}. "
-                        "Value must be a string."
-                    )
-
-            # dict has no attribute parameters error fix
-            if isinstance(self._requested_proof, dict):
-                self._requested_proof['parameters'].update(params)
-            else:
-                self._requested_proof.parameters.update(params)
-            
+            validate_parameters(params)
+            self._parameters.update(params)
         except Exception as e:
             logger.info(f"Error Setting Params: {str(e)}")
             raise SetParamsError("Error setting params") from e
@@ -397,21 +385,20 @@ class ReclaimProofRequest:
         try:
             # Create the full dictionary
 
-            logger.info(f"Requested proof: {self._requested_proof}")
             data = {
                 "applicationId": self._application_id,
                 "providerId": self._provider_id,
                 "sessionId": self._session_id,
                 "context": self._context.to_json(),
-                "requestedProof": (
-                    self._get_requested_proof() if self._requested_proof else None
-                ),
+                "parameters": self._parameters,
                 "appCallbackUrl": self._app_callback_url,
                 "signature": self._signature,
                 "redirectUrl": self._redirect_url,
                 "timeStamp": self._timestamp,
                 "options": self._options,
                 "sdkVersion": self._sdk_version,
+                "jsonProofResponse": self._json_proof_response,
+                "resolvedProviderVersion": self._resolved_provider_version or ""
             }
 
             return json.dumps(data)
@@ -451,20 +438,21 @@ class ReclaimProofRequest:
             instance = cls(
                 data["applicationId"], data["providerId"], data.get("options")
             )
+            
+            if data.get("parameters"):
+                validate_parameters(data["parameters"])
 
             # Set properties
             instance._session_id = data["sessionId"]
             instance._context = Context.from_json(data["context"])
-            instance._requested_proof = (
-                data["requestedProof"] if data["requestedProof"] else None
-            )
             instance._app_callback_url = data.get("appCallbackUrl")
             instance._sdk_version = data["sdkVersion"]
             instance._redirect_url = data.get("redirectUrl")
             instance._signature = data["signature"]
             instance._timestamp = data["timeStamp"]
-
-            logger.info(f"Requested proof: {instance._requested_proof}")
+            instance._parameters = data.get("parameters")
+            instance._json_proof_response = data.get("jsonProofResponse", False)
+            instance._resolved_provider_version = data.get("resolvedProviderVersion", "")
 
             return instance
 
@@ -486,7 +474,6 @@ class ReclaimProofRequest:
             raise SignatureNotFoundError("Signature is not set.")
 
         try:
-            requested_proof = self._get_requested_proof()
             validate_signature(
                 self._provider_id,
                 self._signature,
@@ -502,10 +489,12 @@ class ReclaimProofRequest:
                 "timestamp": self._timestamp,
                 "callbackUrl": self.get_app_callback_url(),
                 "context": json.dumps(self._context.to_json()),
-                "parameters": get_filled_parameters(requested_proof),
+                "parameters": self._parameters,
                 "redirectUrl": self._redirect_url or "",
                 "acceptAiProviders": self._options.get("acceptAiProviders", False),
                 "sdkVersion": self._sdk_version or "",
+                "jsonProofResponse": self._json_proof_response,
+                "resolvedProviderVersion": self._resolved_provider_version or ""
             }
 
             await update_session(self._session_id, SessionStatus.SESSION_STARTED)
@@ -558,46 +547,6 @@ class ReclaimProofRequest:
             logger.info(f"Error setting signature: {str(e)}")
             raise SetSignatureError("Error setting signature") from e
 
-    async def _build_proof_request(self, provider: ProviderData) -> RequestedProof:
-        """Build the proof request
-
-        Args:
-            provider (ProviderData): Provider data
-
-        Returns:
-            RequestedProof: Built proof request
-
-        Raises:
-            BuildProofRequestError: If request cannot be built
-        """
-        try:
-            self._requested_proof = generate_requested_proof(provider)
-            return self._requested_proof
-        except Exception as e:
-            logger.info(str(e))
-            raise BuildProofRequestError(
-                "Something went wrong while generating proof request"
-            ) from e
-
-    def _get_requested_proof(self) -> RequestedProof:
-        """Get the requested proof
-
-        Returns:
-            RequestedProof: The requested proof
-
-        Raises:
-            GetRequestedProofError: If proof cannot be retrieved
-        """
-        try:
-            if not self._requested_proof:
-                raise BuildProofRequestError(
-                    "RequestedProof is not present in the instance."
-                )
-            return self._requested_proof
-        except Exception as e:
-            logger.info(f"Error fetching requested proof: {str(e)}")
-            raise GetRequestedProofError("Error fetching requested proof") from e
-
     async def _generate_signature(self, app_secret: str) -> str:
         """Generate signature using app secret
 
@@ -633,49 +582,5 @@ class ReclaimProofRequest:
             raise SignatureGeneratingError(
                 f"Error generating signature for applicationSecret: {app_secret}"
             ) from e
-
-    def _available_params(self) -> List[str]:
-        """Get available parameters for the provider
-
-        Returns:
-            List[str]: List of available parameter names
-
-        Raises:
-            AvailableParamsError: If parameters cannot be retrieved
-        """
-        try:
-            requested_proof = self._get_requested_proof()
-            
-            # Initialize empty set for available parameters
-            available_params = set()
-            
-            # Handle both dictionary and object types
-            parameters = (
-                requested_proof['parameters'] 
-                if isinstance(requested_proof, dict) 
-                else requested_proof.parameters
-            )
-            
-            url = (
-                requested_proof['url']
-                if isinstance(requested_proof, dict)
-                else requested_proof.url
-            )
-            
-            if parameters:
-                available_params.update(parameters.keys())
-
-            # Add URL parameters
-            if url:
-                import re
-                url_params = re.findall(r"{{(.*?)}}", url)
-                available_params.update(url_params)
-            
-
-            return list(available_params)
-
-        except Exception as e:
-            logger.info(f"Error fetching available params: {str(e)}")
-            raise AvailableParamsError("Error fetching available params") from e
 
     # Add other private helper methods as needed

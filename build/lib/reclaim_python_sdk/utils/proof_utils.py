@@ -1,12 +1,9 @@
-import re
 import httpx
 from eth_account.messages import encode_defunct
 from web3 import Web3
 import json
 import urllib.parse
-from typing import Dict, List, Any, Set
-
-from .interfaces import ProviderData, RequestedProof
+from typing import List, Set
 from .types import SignedClaim, TemplateData
 from .constants import BACKEND_BASE_URL, RECLAIM_SHARE_URL
 from .validation_utils import validate_url
@@ -16,35 +13,6 @@ import logging
 from ..smart_contract import make_beacon
 
 logger = logging.getLogger(__name__)
-
-def generate_requested_proof(provider: ProviderData) -> RequestedProof:
-    """
-    Generates the requested proof for a given provider
-    """
-    
-    provider_params: Dict[str, str] = {}
-    for rs in provider.responseSelections:
-        # Using regex to match parameters between {{ }}
-        matches = re.findall(r'{{(.*?)}}', rs.responseMatch)
-        for match in matches:
-            provider_params[match] = ''
-            
-    proof: RequestedProof = {
-        "url": provider.url,
-        "parameters": provider_params
-    }
-        
-    return proof
-
-def get_filled_parameters(requested_proof: RequestedProof) -> Dict[str, str]:
-    """
-    Retrieves the parameters that have been filled with values from the requested proof
-    """
-    return {
-        param: value 
-        for param, value in requested_proof["parameters"].items() 
-        if value
-    }
 
 async def get_shortened_url(url: str) -> str:
     """

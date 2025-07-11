@@ -1,68 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 from abc import ABC, abstractmethod
-
-# Provider-related classes
-@dataclass
-class ResponseSelection:
-    invert: bool
-    responseMatch: str
-    xPath: Optional[str] = None
-    jsonPath: Optional[str] = None
-    
-    @classmethod
-    def from_json(cls, json: Dict[str, any]) -> 'ResponseSelection':
-        return cls(json['invert'], json['responseMatch'], json['xPath'], json['jsonPath'])
-
-@dataclass
-class BodySniff:
-    enabled: bool
-    regex: Optional[str] = None
-    template: Optional[str] = None
-    
-    @classmethod
-    def from_json(cls, json: Dict[str, any]) -> 'BodySniff':
-        return cls(json['enabled'], json['regex'], json['template'])
-    
-    
-    def to_json(self) -> Dict[str, any]:
-        return {
-            'enabled': self.enabled,
-            'regex': self.regex,
-            'template': self.template
-        }
-
-@dataclass
-class ProviderData:
-    httpProviderId: str
-    name: str
-    url: str
-    loginUrl: str
-    responseSelections: List[ResponseSelection]
-    bodySniff: Optional[BodySniff] = None
-    
-
-    @classmethod
-    def from_json(cls, json: Dict[str, any]) -> 'ProviderData':
-        httpProviderId = json['httpProviderId']
-        name = json['name']
-        url = json['url']
-        loginUrl = json['loginUrl']
-        responseSelections = [ResponseSelection.from_json(rs) for rs in json['responseSelections']]
-        bodySniff = BodySniff.from_json(json['bodySniff']) if json['bodySniff'] else None
-        
-        return cls(httpProviderId, name, url, loginUrl, responseSelections, bodySniff)
-
-    def to_json(self) -> Dict[str, any]:
-        return {
-            'httpProviderId': self.httpProviderId,
-            'name': self.name,
-            'url': self.url,
-            'loginUrl': self.loginUrl,
-            'responseSelections': [rs.to_json() for rs in self.responseSelections],
-            'bodySniff': self.bodySniff.to_json() if self.bodySniff else None
-        }
-
 # Proof-related classes
 @dataclass
 class WitnessData:
@@ -94,7 +32,7 @@ class Proof:
     @classmethod
     def from_json(cls, json: Dict[str, any]) -> 'Proof':
         claimData = ProviderClaimData.from_json(json['claimData'])
-        return cls(json['identifier'], claimData, json['signatures'], json['witnesses'], json['publicData'])
+        return cls(json['identifier'], claimData, json['signatures'], json['witnesses'], json.get('publicData'))
 
 # Request-related classes
 @dataclass

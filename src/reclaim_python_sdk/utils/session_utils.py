@@ -7,17 +7,20 @@ from .validation_utils import validate_function_params
 from .constants import BACKEND_BASE_URL, DEFAULT_RECLAIM_STATUS_URL
 from .logger import logger
 
-async def init_session(provider_id: str, app_id: str, timestamp: str, signature: str) -> InitSessionResponse:
+
+
+async def init_session(provider_id: str, app_id: str, timestamp: str, signature: str, version_num: str = None) -> InitSessionResponse:
     logger.info(f'Initializing session for providerId: {provider_id}, appId: {app_id}')
     try:
         response = requests.post(
-            f'{BACKEND_BASE_URL}/api/sdk/init-session/',
+            f'{BACKEND_BASE_URL}/api/sdk/init/session/',
             headers={'Content-Type': 'application/json'},
             data=json.dumps({
                 'providerId': provider_id,
                 'appId': app_id,
                 'timestamp': timestamp,
                 'signature': signature,
+                'versionNum': version_num
             })
         )
 
