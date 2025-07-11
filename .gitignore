@@ -1,8 +1,8 @@
 venv/
 reclaim_protocol_sdk.egg-info/
 .env
-
-
+build/
+dist/
 
 # pycache
 __pycache__/
