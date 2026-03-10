@@ -54,23 +54,26 @@ async def create_link_with_template_data(template_data: TemplateData) -> str:
         logger.info(f"Error creating link for sessionId: {template_data['sessionId']}, Error: {str(err)}")
         return full_link
 
-async def get_witnesses_for_claim(epoch: int, identifier: str, timestamp_s: int) -> List[str]:
+async def get_attestors() -> List[str]:
     """
-    Retrieves the list of witnesses for a given claim
+    Retrieves the list of witnesses (attestors) from the backend
     """
+    from .constants import DEFAULT_ATTESTORS_URL
     try:
-        beacon = await make_beacon()
-        if not beacon:
-            logger.info('No beacon available for getting witnesses')
-            raise Exception('No beacon available')
-        
-        state = await beacon.get_state(epoch)
-        witness_list = fetch_witness_list_for_claim(state, identifier, timestamp_s)
-        witnesses = [w.id.lower() for w in witness_list]
-        return witnesses
+        async with httpx.AsyncClient() as client:
+            response = await client.get(DEFAULT_ATTESTORS_URL)
+            if response.status_code != 200:
+                response.read()
+                raise Exception(f"Failed to fetch witness addresses: {response.status_code}")
+            
+            res_data = response.json()
+            # The JS SDK expects data: { address: string }[] but handles res.data
+            address_list = res_data.get("data", [])
+            witnesses = [w["address"].lower() for w in address_list if "address" in w]
+            return witnesses
     except Exception as err:
-        logger.info(f'Error getting witnesses for claim: {str(err)}')
-        raise Exception(f'Error getting witnesses for claim: {str(err)}')
+        logger.info(f'Error getting attestors: {str(err)}')
+        raise Exception(f'Error getting attestors: {str(err)}')
 
 def recover_signers_of_signed_claim(claim: SignedClaim) -> List[str]:
     """
@@ -89,16 +92,13 @@ def recover_signers_of_signed_claim(claim: SignedClaim) -> List[str]:
 
 def assert_valid_signed_claim(claim: SignedClaim, expected_witness_addresses: List[str]) -> None:
     """
-    Asserts that a signed claim is valid by checking if all expected witnesses have signed
+    Asserts that a signed claim is valid by checking if at least one expected witness has signed
     """
     witness_addresses = recover_signers_of_signed_claim(claim)
-    witnesses_not_seen: Set[str] = set(expected_witness_addresses)
     
-    for witness in witness_addresses:
-        if witness in witnesses_not_seen:
-            witnesses_not_seen.remove(witness)
+    # ensure at least one signer is an attestor
+    is_valid = any(signer in expected_witness_addresses for signer in witness_addresses)
     
-    if witnesses_not_seen:
-        missing_witnesses = ", ".join(witnesses_not_seen)
-        logger.info(f"Claim validation failed. Missing signatures from: {missing_witnesses}")
-        raise ProofNotVerifiedError(f"Missing signatures from {missing_witnesses}")
+    if not is_valid:
+        logger.info("Claim validation failed. Identifier mismatch or no signature from expected witnesses.")
+        raise ProofNotVerifiedError("Identifier mismatch")

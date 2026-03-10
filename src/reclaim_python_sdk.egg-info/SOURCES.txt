@@ -25,3 +25,4 @@ src/reclaim_python_sdk/utils/session_utils.py
 src/reclaim_python_sdk/utils/types.py
 src/reclaim_python_sdk/utils/validation_utils.py
 src/reclaim_python_sdk/utils/validators.py
+tests/test_request.py
