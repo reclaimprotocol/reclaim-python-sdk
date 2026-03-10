@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 setup(
     name="reclaim_python_sdk",
-    version="1.0.3",
+    version="2.0.0",
     package_dir={"": "src"},
     packages=find_packages(where="src", exclude=["tests*"]),
     include_package_data=True,
@@ -34,4 +34,4 @@ setup(
         "wheel",
         "setuptools>=42",
     ],
-) 
+)

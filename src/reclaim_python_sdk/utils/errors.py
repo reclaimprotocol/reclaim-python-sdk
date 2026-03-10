@@ -109,3 +109,16 @@ class GetRequestedProofError(ReclaimError):
 class ConvertToJsonStringError(ReclaimError):
     """Raised when there's an error converting to JSON string"""
     pass
+
+class StatusUrlError(ReclaimError):
+    """Raised when there's an error fetching the status URL"""
+    pass
+
+class ProofSubmissionFailedError(ReclaimError):
+    """Raised when proof submission fails"""
+    pass
+
+class ErrorDuringVerificationError(ReclaimError):
+    """Raised when an error occurs during verification"""
+    pass
+
