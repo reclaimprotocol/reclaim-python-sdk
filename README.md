@@ -25,27 +25,27 @@ pip install reclaim-python-sdk
 Here's a simple example of how to use the SDK:
 
 ```python
-from reclaim_sdk import ReclaimProofRequest
+from reclaim_python_sdk import ReclaimProofRequest
 import asyncio
 
 async def main():
     # Initialize the SDK
-    APP_ID = 'YOUR_APPLICATION_ID_HERE'
-    APP_SECRET = 'YOUR_APPLICATION_SECRET_HERE'
-    PROVIDER_ID = 'YOUR_PROVIDER_ID_HERE'
+    app_id = 'YOUR_APPLICATION_ID_HERE'
+    app_secret = 'YOUR_APPLICATION_SECRET_HERE'
+    provider_id = 'YOUR_PROVIDER_ID_HERE'
 
-    proof_request = await ReclaimProofRequest.init(
-        app_id=APP_ID,
-        app_secret=APP_SECRET,
-        provider_id=PROVIDER_ID
+    reclaim_proof_request = await ReclaimProofRequest.init(
+        app_id,
+        app_secret,
+        provider_id
     )
 
     # Get the request URL (for QR code generation)
-    request_url = await proof_request.get_request_url()
+    request_url = await reclaim_proof_request.get_request_url()
     print(f"Request URL: {request_url}")
 
     # Get the status URL
-    status_url = proof_request.get_status_url()
+    status_url = reclaim_proof_request.get_status_url()
     print(f"Status URL: {status_url}")
 
 
@@ -62,7 +62,6 @@ Let's break down what's happening in this code:
 2. We generate a request URL using `get_request_url()`. This URL can be used to create a QR code.
 
 3. We get the status URL using `get_status_url()`. This URL can be used to check the status of the claim process.
-
 
 ## Advanced Configuration
 
@@ -101,7 +100,7 @@ The Reclaim Python SDK offers several advanced options to customize your integra
    # Export configuration
    config_json = proof_request.to_json_string()
    print('Exportable config:', config_json)
-   
+
    # Import configuration
    imported_request = ReclaimProofRequest.from_json_string(config_json)
    request_url = await imported_request.get_request_url()
@@ -112,7 +111,7 @@ The Reclaim Python SDK offers several advanced options to customize your integra
 Here's a more complete example showing various features:
 
 ```python
-from reclaim_sdk import ReclaimProofRequest
+from reclaim_python_sdk import ReclaimProofRequest
 import asyncio
 import qrcode
 
@@ -151,15 +150,23 @@ For production applications, it's recommended to handle proofs on your backend:
 2. Create an endpoint on your backend to receive proofs:
 
    ```python
-   from flask import Flask, request
-   
-   app = Flask(__name__)
-   
-   @app.route('/receive-proofs', methods=['POST'])
-   def receive_proofs():
-       proofs = request.json
-       # Process the proofs
-       return {'status': 'success'}
+    from flask import Flask, request, jsonify
+    from reclaim_python_sdk import ReclaimProofRequest, verify_proof, Proof
+    import json
+
+    app = Flask(__name__)
+
+    @app.route('/receive-proofs', methods=['POST'])
+    async def receive_proofs():
+        proof_payload = request.get_json(silent=True)
+        if not proof_payload:
+            return jsonify({'status': 'error', 'message': 'Invalid JSON payload'}), 400
+
+        proof_obj = Proof.from_json(proof_payload)
+        is_verified = await verify_proof(proof_obj)
+
+        print(f"Verified: {is_verified}")
+        return jsonify({'status': 'success', 'verified': is_verified}), 200
    ```
 
 ## Next Steps
