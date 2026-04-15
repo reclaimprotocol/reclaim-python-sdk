@@ -1,9 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
 venv/
-reclaim_protocol_sdk.egg-info/
-.env
+.venv/
+env/
+
+# Build / distribution
 build/
 dist/
+*.egg-info/
+*.egg
+wheels/
 
-# pycache
-__pycache__/
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
 
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 setup(
-    name="reclaim_python_sdk",
+    name="reclaimprotocol-python-sdk",
     version="2.0.0",
     package_dir={"": "src"},
     packages=find_packages(where="src", exclude=["tests*"]),
@@ -19,18 +19,35 @@ setup(
     ],
     python_requires=">=3.7",
     author="Reclaim Protocol",
-    author_email="engineering@creatoros.co",
-    description="Python SDK for the Reclaim Protocol",
+    author_email="sajjadhaider21990@gmail.com",
+    description="Official Python SDK for the Reclaim Protocol — generate and verify zk-attested HTTPS proofs.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/reclaimprotocol/reclaim-python-sdk",
+    project_urls={
+        "Documentation": "https://docs.reclaimprotocol.org/",
+        "Source": "https://github.com/reclaimprotocol/reclaim-python-sdk",
+        "Bug Tracker": "https://github.com/reclaimprotocol/reclaim-python-sdk/issues",
+        "Developer Portal": "https://dev.reclaimprotocol.org/",
+    },
+    keywords=["reclaim", "reclaim-protocol", "zk", "zero-knowledge", "attestation", "proof", "verification", "web3"],
     classifiers=[
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "Topic :: Security :: Cryptography",
+        "Topic :: Software Development :: Libraries :: Python Modules",
     ],
     setup_requires=[
         "wheel",
         "setuptools>=42",
     ],
-) 
+)

@@ -2,10 +2,15 @@
 
 Generate and verify Reclaim Protocol proofs from Python.
 
+> **Migrating from `reclaim-python-sdk`?**
+> This package is the successor to [`reclaim-python-sdk`](https://pypi.org/project/reclaim-python-sdk/).
+> The old package is no longer maintained — please use this one going forward.
+> For legacy versions (≤ 1.0.3), see the [old package on PyPI](https://pypi.org/project/reclaim-python-sdk/).
+
 ## Install
 
 ```bash
-pip install reclaim-python-sdk
+pip install reclaimprotocol-python-sdk
 ```
 
 ## Prerequisites
@@ -147,8 +152,10 @@ pytest tests/
 
 - [Documentation](https://docs.reclaimprotocol.org/)
 - [Developer Portal](https://dev.reclaimprotocol.org/)
+- [Changelog](./CHANGELOG.md)
+- [Upgrading from v1](./UPGRADING.md)
 - [Security Policy](https://github.com/reclaimprotocol/.github/blob/main/SECURITY.md)
-- [License](https://github.com/reclaimprotocol/.github/blob/main/LICENSE)
+- [License](./LICENSE)
 
 ## Security
 
