@@ -109,3 +109,19 @@ class GetRequestedProofError(ReclaimError):
 class ConvertToJsonStringError(ReclaimError):
     """Raised when there's an error converting to JSON string"""
     pass
+
+class ProofNotValidatedError(ReclaimError):
+    """Raised when proof content validation fails"""
+    pass
+
+class ProviderConfigFetchError(ReclaimError):
+    """Raised when fetching provider configuration fails"""
+    pass
+
+class UnknownProofsNotValidatedError(ReclaimError):
+    """Raised when extra unexpected proofs are found that couldn't be validated"""
+    pass
+
+class InvalidRequestSpecError(ReclaimError):
+    """Raised when a request spec is invalid"""
+    pass

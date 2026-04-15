@@ -10,8 +10,6 @@ from .utils.interfaces import (
     Context,
     ProviderClaimData,
 )
-from .utils.types import ClaimInfo, SignedClaim, SessionStatus
-
 from .utils.constants import DEFAULT_RECLAIM_CALLBACK_URL, DEFAULT_RECLAIM_STATUS_URL
 
 from .utils.session_utils import init_session, update_session
@@ -27,6 +25,7 @@ from .utils.errors import (
     SignatureGeneratingError,
     SignatureNotFoundError,
     ProofNotVerifiedError,
+    ProofNotValidatedError,
     SessionNotStartedError,
     GetAppCallbackUrlError,
     GetStatusUrlError,
@@ -38,9 +37,24 @@ from .utils.errors import (
     InvalidParamError,
 )
 
-from .utils.proof_utils import assert_valid_signed_claim, get_witnesses_for_claim
+from .utils.proof_utils import assert_valid_signed_claim, get_witnesses_for_claim, get_attestors, assert_verified_proof
+from .utils.proof_validation_utils import assert_validate_proof
 
 from .witness import get_identifier_from_claim_info
+
+from .utils.types import (
+    ClaimInfo,
+    SignedClaim,
+    SessionStatus,
+    VerificationConfig,
+    ValidationConfigWithHash,
+    ValidationConfigWithProviderInformation,
+    ValidationConfigWithDisabledValidation,
+    VerifyProofResult,
+    VerifyProofResultSuccess,
+    VerifyProofResultFailure,
+    TrustedData,
+)
 
 from .utils.logger import LogLevel, Logger
 
@@ -48,9 +62,78 @@ from .utils.logger import LogLevel, Logger
 logger = Logger()
 
 
-async def verify_proof(proof: Union[Proof, List[Proof]]) -> bool:
+def _resolve_config(config) -> VerificationConfig:
+    """Convert a dict config to the appropriate dataclass, or pass through as-is."""
+    if isinstance(config, (ValidationConfigWithHash, ValidationConfigWithProviderInformation, ValidationConfigWithDisabledValidation)):
+        return config
+    if isinstance(config, dict):
+        if config.get("dangerously_disable_content_validation") or config.get("dangerouslyDisableContentValidation"):
+            return ValidationConfigWithDisabledValidation()
+        if "provider_id" in config or "providerId" in config:
+            return ValidationConfigWithProviderInformation(
+                provider_id=config.get("provider_id") or config.get("providerId"),
+                provider_version=config.get("provider_version") or config.get("providerVersion"),
+                allowed_tags=config.get("allowed_tags") or config.get("allowedTags"),
+            )
+        if "hashes" in config:
+            return ValidationConfigWithHash(hashes=config["hashes"])
+    return config
+
+
+async def verify_proof(
+    proof: Union[Proof, List[Proof]],
+    config,
+) -> VerifyProofResult:
     """
-    Verify a proof or array of proofs by checking signatures and witness data
+    Verify one or more Reclaim proofs by validating signatures, verifying attestor
+    information, and performing content validation against the expected configuration.
+
+    Mirrors the JS SDK's verifyProof(proofOrProofs, config).
+
+    Args:
+        proof: Single proof object or list of proof objects to verify
+        config: Verification configuration — either a dataclass or a dict:
+            - {"providerId": "..."}
+            - {"hashes": ["0x..."]}
+            - {"dangerouslyDisableContentValidation": True}
+
+    Returns:
+        VerifyProofResult: Structured result with is_verified, error, data, public_data
+    """
+    proofs = proof if isinstance(proof, list) else [proof]
+    try:
+        if not proofs:
+            raise ProofNotValidatedError("No proofs provided")
+
+        if not config:
+            raise ProofNotValidatedError(
+                "Verification configuration is required for `verify_proof(proof, config)`"
+            )
+
+        resolved_config = _resolve_config(config)
+
+        # Step 1: Fetch attestors from backend
+        attestors = await get_attestors()
+
+        # Step 2: Verify each proof's signature against attestors
+        for p in proofs:
+            await assert_verified_proof(p, attestors)
+
+        # Step 3: Validate proof content against config
+        await assert_validate_proof(proofs, resolved_config)
+
+        # Step 4: Return structured success
+        return _create_verify_proof_result_success(proofs)
+    except Exception as e:
+        logger.error(f"Error in validating proof: {e}")
+        error = e if isinstance(e, Exception) else Exception(str(e))
+        return _create_verify_proof_result_failure(error)
+
+
+async def verify_proof_deprecated(proof: Union[Proof, List[Proof]]) -> bool:
+    """
+    [DEPRECATED] Verify a proof or array of proofs by checking signatures and witness data.
+    Use verify_proof(proof, config) instead.
 
     Args:
         proof (Union[Proof, List[Proof]]): Single proof object or list of proof objects to verify
@@ -65,7 +148,7 @@ async def verify_proof(proof: Union[Proof, List[Proof]]) -> bool:
     logger.info(f"Verifying proof: {proof}")
     if isinstance(proof, list):
         for single_proof in proof:
-            if not await verify_proof(single_proof):
+            if not await verify_proof_deprecated(single_proof):
                 return False
         return True
 
@@ -86,7 +169,7 @@ async def verify_proof(proof: Union[Proof, List[Proof]]) -> bool:
                 # Assume it's a WitnessData object
                 witness_url = first_witness.url
                 witness_id = first_witness.id
-            
+
             if witness_url == "manual-verify":
                 witnesses.append(witness_id)
             else:
@@ -127,6 +210,54 @@ async def verify_proof(proof: Union[Proof, List[Proof]]) -> bool:
         return False
 
     return True
+
+
+def _create_trusted_data_from_proof(proof: Proof) -> TrustedData:
+    """Extract TrustedData (context + extractedParameters) from a proof."""
+    try:
+        context = json.loads(proof.claimData.context)
+        extracted_parameters = context.pop("extractedParameters", {})
+        return TrustedData(context=context, extracted_parameters=extracted_parameters)
+    except (json.JSONDecodeError, TypeError):
+        return TrustedData(context={}, extracted_parameters={})
+
+
+def _get_public_data_from_proofs(proofs: List[Proof]) -> List:
+    """Collect deduplicated publicData from proofs."""
+    data = []
+    seen = set()
+    for proof in proofs:
+        if proof.publicData is None:
+            continue
+        try:
+            key = json.dumps(proof.publicData, sort_keys=True)
+            if key in seen:
+                continue
+            seen.add(key)
+        except (TypeError, ValueError):
+            pass
+        data.append(proof.publicData)
+    return data
+
+
+def _create_verify_proof_result_success(proofs: List[Proof]) -> VerifyProofResultSuccess:
+    return VerifyProofResultSuccess(
+        is_verified=True,
+        is_tee_verified=None,
+        error=None,
+        data=[_create_trusted_data_from_proof(p) for p in proofs],
+        public_data=_get_public_data_from_proofs(proofs),
+    )
+
+
+def _create_verify_proof_result_failure(error: Exception) -> VerifyProofResultFailure:
+    return VerifyProofResultFailure(
+        is_verified=False,
+        is_tee_verified=None,
+        error=error,
+        data=[],
+        public_data=[],
+    )
 
 
 def transform_for_onchain(proof: Proof) -> Dict[str, Any]:

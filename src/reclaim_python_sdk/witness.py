@@ -4,20 +4,31 @@ from web3 import Web3
 from eth_typing import HexStr
 from .utils.interfaces import WitnessData, ProviderClaimData
 import json
+from json_canonical import canonicalize
 
 from .utils.types import ClaimInfo, BeaconState, WitnessData, ProviderClaimData, SignedClaim
 
 def get_identifier_from_claim_info(info: ClaimInfo) -> str:
     """
-    Generate a unique identifier from claim info
-    
+    Generate a unique identifier from claim info.
+    Canonicalizes the context JSON before hashing (matches JS SDK).
+
     Args:
         info (ClaimInfo): Claim information containing provider, parameters and context
-        
+
     Returns:
         str: Hex string identifier
     """
-    string = f"{info.provider}\n{info.parameters}\n{info.context}"
+    canonical_context = info.context or ''
+    if canonical_context:
+        try:
+            ctx = json.loads(canonical_context)
+            canonical_bytes = canonicalize(ctx)
+            canonical_context = canonical_bytes.decode('utf-8') if isinstance(canonical_bytes, bytes) else canonical_bytes
+        except (json.JSONDecodeError, TypeError):
+            raise ValueError('unable to parse non-empty context. Must be JSON')
+
+    string = f"{info.provider}\n{info.parameters}\n{canonical_context}"
     hash_bytes = Web3.keccak(text=string)
     return '0x' + hash_bytes.hex().lower()
 
@@ -70,16 +81,23 @@ def fetch_witness_list_for_claim(
 
 def create_sign_data_for_claim(data: ProviderClaimData) -> str:
     """
-    Create string to be signed for a claim
-    
+    Create string to be signed for a claim.
+    Recomputes the identifier from provider/parameters/context
+    (matches JS SDK behavior) so that tampered context is detected.
+
     Args:
         data (ProviderClaimData): Claim data
-        
+
     Returns:
         str: Data string to sign
     """
+    identifier = get_identifier_from_claim_info(ClaimInfo(
+        provider=data.provider,
+        parameters=data.parameters,
+        context=data.context,
+    ))
     lines = [
-        data.identifier,
+        identifier,
         data.owner.lower(),
         str(data.timestampS),
         str(data.epoch)

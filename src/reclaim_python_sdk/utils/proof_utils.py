@@ -5,10 +5,11 @@ import json
 import urllib.parse
 from typing import List, Set
 from .types import SignedClaim, TemplateData
-from .constants import BACKEND_BASE_URL, RECLAIM_SHARE_URL
+from .constants import BACKEND_BASE_URL, RECLAIM_SHARE_URL, DEFAULT_ATTESTORS_URL
 from .validation_utils import validate_url
 from .errors import ProofNotVerifiedError
 from ..witness import create_sign_data_for_claim, fetch_witness_list_for_claim
+from ..utils.interfaces import Proof, WitnessData
 import logging
 from ..smart_contract import make_beacon
 
@@ -93,12 +94,44 @@ def assert_valid_signed_claim(claim: SignedClaim, expected_witness_addresses: Li
     """
     witness_addresses = recover_signers_of_signed_claim(claim)
     witnesses_not_seen: Set[str] = set(expected_witness_addresses)
-    
+
     for witness in witness_addresses:
         if witness in witnesses_not_seen:
             witnesses_not_seen.remove(witness)
-    
+
     if witnesses_not_seen:
         missing_witnesses = ", ".join(witnesses_not_seen)
         logger.info(f"Claim validation failed. Missing signatures from: {missing_witnesses}")
         raise ProofNotVerifiedError(f"Missing signatures from {missing_witnesses}")
+
+
+async def get_attestors() -> List[WitnessData]:
+    """
+    Fetches the list of attestor addresses from the Reclaim backend.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(DEFAULT_ATTESTORS_URL)
+        if response.status_code != 200:
+            raise ProofNotVerifiedError(
+                f"Failed to fetch attestor addresses: {response.status_code}"
+            )
+        result = response.json()
+        data = result.get("data", [])
+        return [WitnessData(id=wt["address"], url="") for wt in data]
+
+
+async def assert_verified_proof(proof: Proof, attestors: List[WitnessData]) -> None:
+    """
+    Verifies that at least one attestor signed the proof.
+    Mirrors JS SDK's assertVerifiedProof.
+    """
+    signed_claim = SignedClaim(
+        claim=proof.claimData,
+        signatures=[
+            bytes.fromhex(sig.replace("0x", "")) for sig in proof.signatures
+        ],
+    )
+    signers = recover_signers_of_signed_claim(signed_claim)
+    attestor_ids = {a.id.lower() for a in attestors}
+    if not any(signer in attestor_ids for signer in signers):
+        raise ProofNotVerifiedError("Identifier mismatch")
