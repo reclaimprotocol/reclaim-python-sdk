@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 setup(
     name="reclaim_python_sdk",
-    version="1.0.3",
+    version="2.0.0",
     package_dir={"": "src"},
     packages=find_packages(where="src", exclude=["tests*"]),
     include_package_data=True,
@@ -14,7 +14,6 @@ setup(
         "python-dotenv>=1.0.0",
         "requests>=2.32.3",
         "httpx>=0.24.0",
-        "asyncio>=3.4.3",
         "safe-pysha3>=1.0.2",
         "json-canonical>=2.0.0",
     ],

@@ -1,206 +1,155 @@
-# Reclaim Protocol Python SDK Integration Guide
+# Reclaim Protocol Python SDK
 
-This guide will walk you through integrating the Reclaim Protocol Python SDK into your application. We'll create a simple Python application that demonstrates how to use the SDK to generate proofs and verify claims.
+Generate and verify Reclaim Protocol proofs from Python.
 
-## Prerequisites
-
-Before we begin, make sure you have:
-
-1. An application ID from Reclaim Protocol.
-2. An application secret from Reclaim Protocol.
-3. A provider ID for the specific service you want to verify.
-
-You can obtain these details from the [Reclaim Developer Portal](https://dev.reclaimprotocol.org/).
-
-## Step 1: Installation
-
-You can install this package directly from GitHub using pip:
+## Install
 
 ```bash
 pip install reclaim-python-sdk
 ```
 
-## Step 2: Basic Usage
+## Prerequisites
 
-Here's a simple example of how to use the SDK:
+Get your credentials from the [Reclaim Developer Portal](https://dev.reclaimprotocol.org/):
 
-```python
-from reclaim_python_sdk import ReclaimProofRequest
-import asyncio
+- `APP_ID`
+- `APP_SECRET`
+- `PROVIDER_ID`
 
-async def main():
-    # Initialize the SDK
-    app_id = 'YOUR_APPLICATION_ID_HERE'
-    app_secret = 'YOUR_APPLICATION_SECRET_HERE'
-    provider_id = 'YOUR_PROVIDER_ID_HERE'
+## Quick Start
 
-    reclaim_proof_request = await ReclaimProofRequest.init(
-        app_id,
-        app_secret,
-        provider_id
-    )
-
-    # Get the request URL (for QR code generation)
-    request_url = await reclaim_proof_request.get_request_url()
-    print(f"Request URL: {request_url}")
-
-    # Get the status URL
-    status_url = reclaim_proof_request.get_status_url()
-    print(f"Status URL: {status_url}")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-## Understanding the Code
-
-Let's break down what's happening in this code:
-
-1. We initialize the Reclaim SDK with your application ID, secret, and provider ID.
-
-2. We generate a request URL using `get_request_url()`. This URL can be used to create a QR code.
-
-3. We get the status URL using `get_status_url()`. This URL can be used to check the status of the claim process.
-
-## Advanced Configuration
-
-The Reclaim Python SDK offers several advanced options to customize your integration:
-
-1. **Adding Context**:
-
-   ```python
-   proof_request.add_context('0x00000000000', 'Example context message')
-   ```
-
-2. **Setting Parameters**:
-
-   ```python
-   proof_request.set_params({
-       'email': 'test@example.com',
-       'userName': 'testUser'
-   })
-   ```
-
-3. **Custom Redirect URL**:
-
-   ```python
-   proof_request.set_redirect_url('https://example.com/redirect')
-   ```
-
-4. **Custom Callback URL**:
-
-   ```python
-   proof_request.set_app_callback_url('https://example.com/callback')
-   ```
-
-5. **Exporting and Importing SDK Configuration**:
-
-   ```python
-   # Export configuration
-   config_json = proof_request.to_json_string()
-   print('Exportable config:', config_json)
-
-   # Import configuration
-   imported_request = ReclaimProofRequest.from_json_string(config_json)
-   request_url = await imported_request.get_request_url()
-   ```
-
-## Complete Example
-
-Here's a more complete example showing various features:
+### 1. Generate a proof request
 
 ```python
-from reclaim_python_sdk import ReclaimProofRequest
 import asyncio
-import qrcode
+from reclaim_python_sdk import ReclaimProofRequest
 
 async def main():
-    # Initialize SDK
     proof_request = await ReclaimProofRequest.init(
-        app_id='YOUR_APP_ID',
-        app_secret='YOUR_APP_SECRET',
-        provider_id='YOUR_PROVIDER_ID'
+        app_id="YOUR_APP_ID",
+        app_secret="YOUR_APP_SECRET",
+        provider_id="YOUR_PROVIDER_ID",
     )
 
-    # Configure the request
-    proof_request.add_context('0x00000000000', 'Example context')
-    proof_request.set_params({'email': 'test@example.com'})
-    proof_request.set_redirect_url('https://example.com/redirect')
-    proof_request.set_app_callback_url('https://example.com/callback')
+    # Set the URL where proofs will be sent
+    proof_request.set_app_callback_url("https://your-backend.com/receive-proofs")
 
-    # Get request URL
+    # URL to show as QR code / deep link to the user
     request_url = await proof_request.get_request_url()
+    print(request_url)
 
-
-if __name__ == "__main__":
-    asyncio.run(main())
+asyncio.run(main())
 ```
 
-## Handling Proofs on Your Backend
+#### Optional configuration
 
-For production applications, it's recommended to handle proofs on your backend:
+```python
+# Add contextual data bound to the proof
+proof_request.add_context("0x0", "login for example.com")
 
-1. Set a callback URL:
+# Pre-fill known parameters
+proof_request.set_params({"email": "user@example.com"})
 
-   ```python
-   proof_request.set_callback_url('https://your-backend.com/receive-proofs')
-   ```
+# Redirect the user after verification
+proof_request.set_redirect_url("https://your-app.com/success")
 
-2. Create an endpoint on your backend to receive proofs:
+# Export/import the request (e.g., send to another service)
+config = proof_request.to_json_string()
+restored = await ReclaimProofRequest.from_json_string(config)
+```
 
-   ```python
-    from flask import Flask, request, jsonify
-    from reclaim_python_sdk import ReclaimProofRequest, verify_proof, Proof
-    import json
+### 2. Receive and verify proofs
 
-    app = Flask(__name__)
+Any web framework works. Here's Flask:
 
-    @app.route('/receive-proofs', methods=['POST'])
-    async def receive_proofs():
-        proof_payload = request.get_json(silent=True)
-        if not proof_payload:
-            return jsonify({'status': 'error', 'message': 'Invalid JSON payload'}), 400
+```python
+from flask import Flask, request, jsonify
+from reclaim_python_sdk import verify_proof, Proof
 
-        proof_obj = Proof.from_json(proof_payload)
-        is_verified = await verify_proof(proof_obj)
+app = Flask(__name__)
 
-        print(f"Verified: {is_verified}")
-        return jsonify({'status': 'success', 'verified': is_verified}), 200
-   ```
+@app.post("/receive-proofs")
+async def receive_proofs():
+    proof = Proof.from_json(request.json)
+    result = await verify_proof(proof, {"providerId": "YOUR_PROVIDER_ID"})
 
-## Next Steps
+    if not result.is_verified:
+        return jsonify({"error": str(result.error)}), 400
 
-Explore the [Reclaim Protocol documentation](https://docs.reclaimprotocol.org/) for more advanced features and best practices for integrating the SDK into your production applications.
+    return jsonify({
+        "extracted_parameters": result.data[0].extracted_parameters,
+    })
+```
 
-Happy coding with Reclaim Protocol!
+> `verify_proof` accepts a single proof OR a list of proofs:
+> ```python
+> await verify_proof(proof, config)      # single
+> await verify_proof([p1, p2, p3], config)  # multiple
+> ```
 
-## Contributing to Our Project
+## `verify_proof` Config Options
 
-We welcome contributions to our project! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request.
+### 1. By provider ID + version (recommended)
 
-## Security Note
+Pins verification to a specific provider version. Only `providerId` is required — `providerVersion` and `allowedTags` are optional (pass `[]` for empty tags):
 
-Always keep your Application Secret secure. Never expose it in client-side code or public repositories.
+```python
+await verify_proof(proof, {
+    "providerId": "YOUR_PROVIDER_ID",
+    "providerVersion": "1.0.0",  # optional but recommended
+    "allowedTags": ["ai"],        # optional, can be []
+})
+```
 
-## Code of Conduct
+### 2. By provider ID only
 
-Please read and follow our [Code of Conduct](https://github.com/reclaimprotocol/.github/blob/main/Code-of-Conduct.md) to ensure a positive and inclusive environment for all contributors.
+Fetches the latest expected hashes from the Reclaim backend:
+
+```python
+await verify_proof(proof, {"providerId": "YOUR_PROVIDER_ID"})
+```
+
+### 3. By known hashes (no network calls)
+
+Supply the expected hashes directly — no call to the Reclaim backend:
+
+```python
+await verify_proof(proof, {"hashes": ["0x1abc2def3456..."]})
+```
+
+### 4. Skip content validation
+
+Only checks attestor signatures — does NOT validate the proof content:
+
+```python
+await verify_proof(proof, {"dangerouslyDisableContentValidation": True})
+```
+
+### Result shape
+
+`verify_proof` always returns a result with:
+
+| Field | Description |
+|---|---|
+| `is_verified` | `True` / `False` |
+| `error` | `Exception` if failed, `None` if passed |
+| `data` | List of `TrustedData` (context + extracted parameters) |
+| `public_data` | Deduplicated public data from proofs |
+
+## Testing
+
+```bash
+pip install pytest pytest-asyncio
+pytest tests/
+```
+
+## Links
+
+- [Documentation](https://docs.reclaimprotocol.org/)
+- [Developer Portal](https://dev.reclaimprotocol.org/)
+- [Security Policy](https://github.com/reclaimprotocol/.github/blob/main/SECURITY.md)
+- [License](https://github.com/reclaimprotocol/.github/blob/main/LICENSE)
 
 ## Security
 
-If you discover any security-related issues, please refer to our [Security Policy](https://github.com/reclaimprotocol/.github/blob/main/SECURITY.md) for information on how to responsibly disclose vulnerabilities.
-
-## Contributor License Agreement
-
-Before contributing to this project, please read and sign our [Contributor License Agreement (CLA)](https://github.com/reclaimprotocol/.github/blob/main/CLA.md).
-
-## Indie Hackers
-
-For Indie Hackers: [Check out our guidelines and potential grant opportunities](https://github.com/reclaimprotocol/.github/blob/main/Indie-Hackers.md)
-
-## License
-
-This project is licensed under a [custom license](https://github.com/reclaimprotocol/.github/blob/main/LICENSE). By contributing to this project, you agree that your contributions will be licensed under its terms.
-
-Thank you for your contributions!
+Never commit your `APP_SECRET` or expose it in client-side code.

@@ -21,7 +21,8 @@ async def init_session(provider_id: str, app_id: str, timestamp: str, signature:
                 'timestamp': timestamp,
                 'signature': signature,
                 'versionNum': version_num
-            })
+            }),
+            timeout=30,
         )
 
         res = response.json()
@@ -51,7 +52,8 @@ async def update_session(session_id, status):
         response = requests.post(
             f'{BACKEND_BASE_URL}/api/sdk/update/session/',
             headers={'Content-Type': 'application/json'},
-            data=json.dumps({'sessionId': session_id, 'status': status})
+            data=json.dumps({'sessionId': session_id, 'status': status}),
+            timeout=30,
         )
 
         res = response.json()

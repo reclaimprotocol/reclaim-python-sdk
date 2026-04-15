@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, Callable, List
+from typing import Dict, Any, Optional, Callable, List, Union
 from .interfaces import *
 from enum import Enum
 
@@ -242,3 +242,63 @@ class Session:
             ),
             statusV2=json["statusV2"],
         )
+
+
+# --- Verification types (mirrors JS SDK) ---
+
+@dataclass
+class HashRequirement:
+    value: Union[str, List[str]]
+    required: Optional[bool] = None
+    multiple: Optional[bool] = None
+
+
+@dataclass
+class ValidationConfigWithHash:
+    hashes: List[Union[str, HashRequirement]]
+
+
+@dataclass
+class ValidationConfigWithProviderInformation:
+    provider_id: str
+    provider_version: Optional[str] = None
+    allowed_tags: Optional[List[str]] = None
+
+
+@dataclass
+class ValidationConfigWithDisabledValidation:
+    dangerously_disable_content_validation: bool = True
+
+
+VerificationConfig = Union[
+    ValidationConfigWithHash,
+    ValidationConfigWithProviderInformation,
+    ValidationConfigWithDisabledValidation,
+]
+
+
+@dataclass
+class TrustedData:
+    context: Dict[str, Any]
+    extracted_parameters: Dict[str, str]
+
+
+@dataclass
+class VerifyProofResultSuccess:
+    is_verified: bool  # always True
+    is_tee_verified: Optional[bool]
+    error: None
+    data: List[TrustedData]
+    public_data: List[Any]
+
+
+@dataclass
+class VerifyProofResultFailure:
+    is_verified: bool  # always False
+    is_tee_verified: Optional[bool]
+    error: Exception
+    data: List
+    public_data: List
+
+
+VerifyProofResult = Union[VerifyProofResultSuccess, VerifyProofResultFailure]
